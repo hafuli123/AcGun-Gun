@@ -284,7 +284,7 @@ int main(void)
     MX_GPIO_Init();
 
     rt_sec_delay(1);    //延时，这样可实现长按开机
-    SYS_ON();
+    SYS_ON();           //开启系统供电
 
     Device_register(&oled);
     Device_register(&spiflash);
@@ -292,7 +292,7 @@ int main(void)
     Device_register(&gc24);
 
     fd_oled = Device_open("oled",0);
-    fd_spiflash = Device_open("spiflash",0);    //spi flash使用dev不太成功，只好直接使用底层函数
+    fd_spiflash = Device_open("spiflash",0);
     fd_mp3 = Device_open("mp3",0);
     fd_gc24 = Device_open("gc24",0);
 
@@ -300,21 +300,35 @@ int main(void)
     pos[0]=0;pos[1]=0;pos[2]=120;pos[3]=8;  //pos[]={0,0,120,8};
     Device_ioctl(fd_oled, pos, bmp_aocekeji);
 
-    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_CHK_ADD, 1);
-    if( *fs_rxbuf != FS_CHK_VAL){
+//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_CHK_ADD, 1);
+    if( /* *fs_rxbuf */ Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_CHK_ADD) != FS_CHK_VAL){
         //首次使用，初始化flash
-        config.id=0x02000001;
+        config.id=0x02000002;
         config.ip=0x0201;
         uint8_t chk = FS_CHK_VAL;
-        SPI_FLASH_SectorErase(FS_ID_ADD);
+        uint32_t *padd , add;
+        padd=&add;
+//        SPI_FLASH_SectorErase(FS_ID_ADD);
+        add = FS_ID_ADD;
+        Device_ioctl(fd_spiflash, 0, padd);
         uint8_t *pid=(uint8_t*)&config.id;
-        SPI_FLASH_BufferWrite(pid, FS_ID_ADD, 4);
+//        SPI_FLASH_BufferWrite(pid, FS_ID_ADD, 4);
+        Device_write(fd_spiflash, pid, FS_ID_ADD);
         uint8_t *pip=(uint8_t*)&config.ip;
-        SPI_FLASH_BufferWrite(pip, FS_ID_ADD+4, 4);
-        SPI_FLASH_SectorErase(FS_SHOOTCNT_ADD);
+//        SPI_FLASH_BufferWrite(pip, FS_ID_ADD+4, 4);
+        Device_write(fd_spiflash, pip, FS_ID_ADD+4);
+
+//        SPI_FLASH_SectorErase(FS_SHOOTCNT_ADD);
+        add = FS_SHOOTCNT_ADD;
+        Device_ioctl(fd_spiflash, 0, padd);
         uint8_t *pshc=(uint8_t*)&config.i_shootcnt;
-        SPI_FLASH_BufferWrite(pshc, FS_SHOOTCNT_ADD, 4);
-        SPI_FLASH_SectorErase(FS_SET_ADD);
+//        SPI_FLASH_BufferWrite(pshc, FS_SHOOTCNT_ADD, 4);
+        Device_write(fd_spiflash, pshc, FS_SHOOTCNT_ADD);
+
+//        SPI_FLASH_SectorErase(FS_SET_ADD);
+        add = FS_SET_ADD;
+        Device_ioctl(fd_spiflash, 0, padd);
+        /*
         uint8_t *plas=&config.laser_stat;
         SPI_FLASH_BufferWrite(plas, FS_SET_ADD, 1);
         uint8_t *pmts=&config.mot_stat;
@@ -328,20 +342,33 @@ int main(void)
         SPI_FLASH_BufferWrite(psdv, FS_SET_ADD+4, 1);
         uint8_t *plag=&config.lang;
         SPI_FLASH_BufferWrite(plag, FS_SET_ADD+5, 1);
+        */
+        config.snd_vol=30;
+        uint8_t set_buf[6]={config.laser_stat , config.mot_stat , config.snd_stat ,
+                config.snd_typ , config.snd_vol , config.lang};
+        Device_write(fd_spiflash, set_buf, FS_SET_ADD);
 
         uint8_t *p=&chk;
-        SPI_FLASH_BufferWrite(p, FS_CHK_ADD, 1);
+        add = FS_CHK_ADD;
+        Device_ioctl(fd_spiflash, 0, padd);
+//        SPI_FLASH_BufferWrite(p, FS_CHK_ADD, 1);
+        Device_write(fd_spiflash, p, FS_CHK_ADD);
     }
 
-    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD, 4);
+//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD, 4);
+    Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_ID_ADD);
     config.id=*(uint32_t*)fs_rxbuf;
-    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD+4, 4);
-    config.ip=*(uint32_t*)fs_rxbuf;
+//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD+4, 4);
+//    Device_read(fd_spiflash, fs_rxbuf, FS_ID_ADD+4);
+    uint8_t *prx; prx=(uint8_t*)fs_rxbuf;
+    config.ip=*(uint32_t*)(prx+4);
 
-    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SHOOTCNT_ADD, 4);
+//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SHOOTCNT_ADD, 4);
+    Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_SHOOTCNT_ADD);
     config.i_shootcnt=*(uint32_t*)fs_rxbuf;
 
-    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SET_ADD, 6);
+//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SET_ADD, 6);
+    Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_SET_ADD);
     config.laser_stat=*fs_rxbuf;
     config.mot_stat=*(fs_rxbuf+1);
     config.snd_stat=*(fs_rxbuf+2);

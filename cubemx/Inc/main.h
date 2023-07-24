@@ -79,7 +79,7 @@ void rt_sec_delay(int sec);
 #define P_SEND_LIMVAL 50   //压力大于多少才算有按下 才发送压力值
 
 #define TIMER_MOT_OFF_INTERVAL    300 //300ms停止电机振动
-#define TIMER_ADC_P_INTERVAL       8   //5ms采集发送一次压力
+#define TIMER_ADC_P_INTERVAL       5   //5ms采集发送一次压力
 
 #define RLS_CHK_PT    3
 #define SHOOT_RLS_CNT     100

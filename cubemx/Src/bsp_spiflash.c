@@ -50,23 +50,40 @@ uint8_t spiflash_read(int fd,void*buf,int count)
 {
     //最多读10字节
     uint32_t add=count;
-    memset((uint8_t*)buf,0,8);
-    SPI_FLASH_BufferRead((uint8_t*)buf, add, 8);
+    uint8_t rx[10],*p,*q;
+    SPI_FLASH_BufferRead(rx, add, 10);
+    p=(uint8_t*)buf; q=rx;
+    for(int i=0;i<10;i++){
+        *p=*q;
+        p++;q++;
+    }
     //只读一字节，此返回值只在读CHK的时候有用
-    return *(uint8_t*)buf;
+    return *rx;
 }
 uint8_t spiflash_write(int fd,void*buf,int count)
 {
     uint32_t add=count;
+    uint8_t tx[10], *p ,*q;
     if(add < FS_SET_ADD){
-        SPI_FLASH_BufferWrite((uint8_t*)buf, FS_ID_ADD, 4);
+        p=(uint8_t*)buf; q=tx;
+        for(int i=0;i<4;i++){
+            *q=*p;
+            q++;p++;
+        }
+        SPI_FLASH_BufferWrite(tx, add, 4);
         return 0;
     }
     else if(add == FS_SET_ADD){
-        SPI_FLASH_BufferWrite((uint8_t*)buf, count, 6);
+        p=(uint8_t*)buf; q=tx;
+        for(int i=0;i<6;i++){
+            *q=*p;
+            q++;p++;
+        }
+        SPI_FLASH_BufferWrite(tx, add, 6);
         return 0;
     }
-    SPI_FLASH_BufferWrite((uint8_t*)buf, count, 1);
+    tx[0]=*(uint8_t *)buf;
+    SPI_FLASH_BufferWrite(tx, add, 1);
     return 0;
 }
 uint8_t spiflash_erase(int fd,void*pos,void *buf)
