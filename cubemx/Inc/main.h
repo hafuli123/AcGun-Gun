@@ -81,8 +81,8 @@ void rt_sec_delay(int sec);
 #define TIMER_MOT_OFF_INTERVAL    300 //300ms停止电机振动
 #define TIMER_ADC_P_INTERVAL       5   //5ms采集发送一次压力
 
-#define RLS_CHK_PT    3
-#define SHOOT_RLS_CNT     100
+#define RLS_CHK_PT    3     //按压松开后，RLS_CHK_PT次松开才算确认松开
+#define SHOOT_RLS_CNT     100       //确认松开后，持续SHOOT_RLS_CNT次发送release
 
 #define P_LIMVAL       800 //极限压力高度
 

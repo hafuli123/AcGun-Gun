@@ -70,6 +70,9 @@ __IO uint8_t fs_rxbuf[10];
 
 uint8_t but_snd[]={0x7e,0x05,0x41,0x00,0x01,0x45,0xef}; //按钮声音
 
+/* press value config */
+float p_val_prm[3][2]={ {23,300 } ,  {37,400 } , { 67,700 } };
+float a1,b1,a2,b2;
 /* ADC */
 void adc_b_th_entry(void*parameter){
     float f_adc_val , f_adc_tval;
@@ -138,7 +141,6 @@ void adc_p_th_entry(void*parameter){
 
             if((config.snd_stat==SND_E)&&(config.snd_typ==SNDTYP_D)){
                 Device_write(fd_mp3, load_snd, 7);
-//                USART_Send(load_snd,7);
             }
             fb.p_cnt=0;
             fb.load_lk=N;
@@ -280,6 +282,11 @@ void mot_tm_callback(void*parameter){
 
 int main(void)
 {
+    a1=(p_val_prm[1][1]-p_val_prm[0][1])/(p_val_prm[1][0]*p_val_prm[1][0]-p_val_prm[0][0]*p_val_prm[0][0]);
+    b1=p_val_prm[1][1]-a1*p_val_prm[1][0]*p_val_prm[1][0];
+    a2=(p_val_prm[2][1]-p_val_prm[1][1])/(p_val_prm[2][0]-p_val_prm[1][0]);
+    b2=p_val_prm[2][1] - a2*p_val_prm[2][0];
+
     HAL_Init();
     MX_GPIO_Init();
 
@@ -300,49 +307,28 @@ int main(void)
     pos[0]=0;pos[1]=0;pos[2]=120;pos[3]=8;  //pos[]={0,0,120,8};
     Device_ioctl(fd_oled, pos, bmp_aocekeji);
 
-//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_CHK_ADD, 1);
-    if( /* *fs_rxbuf */ Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_CHK_ADD) != FS_CHK_VAL){
+    if(Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_CHK_ADD) != FS_CHK_VAL){
         //首次使用，初始化flash
+        /* id、ip config */
         config.id=0x02000002;
         config.ip=0x0201;
         uint8_t chk = FS_CHK_VAL;
         uint32_t *padd , add;
         padd=&add;
-//        SPI_FLASH_SectorErase(FS_ID_ADD);
         add = FS_ID_ADD;
         Device_ioctl(fd_spiflash, 0, padd);
         uint8_t *pid=(uint8_t*)&config.id;
-//        SPI_FLASH_BufferWrite(pid, FS_ID_ADD, 4);
         Device_write(fd_spiflash, pid, FS_ID_ADD);
         uint8_t *pip=(uint8_t*)&config.ip;
-//        SPI_FLASH_BufferWrite(pip, FS_ID_ADD+4, 4);
         Device_write(fd_spiflash, pip, FS_ID_ADD+4);
 
-//        SPI_FLASH_SectorErase(FS_SHOOTCNT_ADD);
         add = FS_SHOOTCNT_ADD;
         Device_ioctl(fd_spiflash, 0, padd);
         uint8_t *pshc=(uint8_t*)&config.i_shootcnt;
-//        SPI_FLASH_BufferWrite(pshc, FS_SHOOTCNT_ADD, 4);
         Device_write(fd_spiflash, pshc, FS_SHOOTCNT_ADD);
 
-//        SPI_FLASH_SectorErase(FS_SET_ADD);
         add = FS_SET_ADD;
         Device_ioctl(fd_spiflash, 0, padd);
-        /*
-        uint8_t *plas=&config.laser_stat;
-        SPI_FLASH_BufferWrite(plas, FS_SET_ADD, 1);
-        uint8_t *pmts=&config.mot_stat;
-        SPI_FLASH_BufferWrite(pmts, FS_SET_ADD+1, 1);
-        uint8_t *psds=&config.snd_stat;
-        SPI_FLASH_BufferWrite(psds, FS_SET_ADD+2, 1);
-        uint8_t *psdt=&config.snd_typ;
-        SPI_FLASH_BufferWrite(psdt, FS_SET_ADD+3, 1);
-        config.snd_vol=30;
-        uint8_t *psdv=&config.snd_vol;
-        SPI_FLASH_BufferWrite(psdv, FS_SET_ADD+4, 1);
-        uint8_t *plag=&config.lang;
-        SPI_FLASH_BufferWrite(plag, FS_SET_ADD+5, 1);
-        */
         config.snd_vol=30;
         uint8_t set_buf[6]={config.laser_stat , config.mot_stat , config.snd_stat ,
                 config.snd_typ , config.snd_vol , config.lang};
@@ -351,23 +337,17 @@ int main(void)
         uint8_t *p=&chk;
         add = FS_CHK_ADD;
         Device_ioctl(fd_spiflash, 0, padd);
-//        SPI_FLASH_BufferWrite(p, FS_CHK_ADD, 1);
         Device_write(fd_spiflash, p, FS_CHK_ADD);
     }
 
-//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD, 4);
     Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_ID_ADD);
     config.id=*(uint32_t*)fs_rxbuf;
-//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_ID_ADD+4, 4);
-//    Device_read(fd_spiflash, fs_rxbuf, FS_ID_ADD+4);
     uint8_t *prx; prx=(uint8_t*)fs_rxbuf;
     config.ip=*(uint32_t*)(prx+4);
 
-//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SHOOTCNT_ADD, 4);
     Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_SHOOTCNT_ADD);
     config.i_shootcnt=*(uint32_t*)fs_rxbuf;
 
-//    SPI_FLASH_BufferRead((uint8_t*)fs_rxbuf, FS_SET_ADD, 6);
     Device_read(fd_spiflash, (uint8_t*)fs_rxbuf, FS_SET_ADD);
     config.laser_stat=*fs_rxbuf;
     config.mot_stat=*(fs_rxbuf+1);
@@ -414,6 +394,7 @@ int main(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     uint8_t pos[4];
+    uint32_t *padd , add;
     if(GPIO_Pin==KEY_ON_PIN){
         rt_thread_mdelay(10);
         if(KEY_ON_PRESS){
@@ -440,24 +421,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
                 if(config.i_shoottemp > 30){
                     OLED_ShowStr(80, 6,(uint8_t*)&"...", 2);
                     uint8_t *pshc=(uint8_t*)&config.i_shootcnt;
-                    SPI_FLASH_SectorErase(FS_SHOOTCNT_ADD);
-                    SPI_FLASH_BufferWrite(pshc, FS_SHOOTCNT_ADD, 4);
+                    padd=&add;
+                    add = FS_SHOOTCNT_ADD;
+                    Device_ioctl(fd_spiflash, 0, padd);
+                    Device_write(fd_spiflash, pshc, FS_SHOOTCNT_ADD);
                 }
                 if(fb.sav_set_flg==Y){
                     OLED_ShowStr(80, 6,(uint8_t*)&"...", 2);
-                    SPI_FLASH_SectorErase(FS_SET_ADD);
-                    uint8_t *plas=&config.laser_stat;
-                    SPI_FLASH_BufferWrite(plas, FS_SET_ADD, 1);
-                    uint8_t *pmts=&config.mot_stat;
-                    SPI_FLASH_BufferWrite(pmts, FS_SET_ADD+1, 1);
-                    uint8_t *psds=&config.snd_stat;
-                    SPI_FLASH_BufferWrite(psds, FS_SET_ADD+2, 1);
-                    uint8_t *psdt=&config.snd_typ;
-                    SPI_FLASH_BufferWrite(psdt, FS_SET_ADD+3, 1);
-                    uint8_t *psdv=&config.snd_vol;
-                    SPI_FLASH_BufferWrite(psdv, FS_SET_ADD+4, 1);
-                    uint8_t *plag=&config.lang;
-                    SPI_FLASH_BufferWrite(plag, FS_SET_ADD+5, 1);
+                    padd=&add;
+                    add = FS_SET_ADD;
+                    Device_ioctl(fd_spiflash, 0, padd);
+                    uint8_t set_buf[6]={config.laser_stat , config.mot_stat , config.snd_stat ,
+                            config.snd_typ , config.snd_vol , config.lang};
+                    Device_write(fd_spiflash, set_buf, FS_SET_ADD);
                 }
                 SYS_OFF();
                 __HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);
@@ -817,17 +793,20 @@ void shw_volnum(uint8_t x,uint8_t y,uint8_t itl,uint32_t vol)
 float opt_p_val(int raw_val)
 {
     //分段：0  300 400 700
-    if(  raw_val<=23){
-        return 13.0434f*raw_val;
+    if(  raw_val<=p_val_prm[0][0]){
+//        return 13.0434f*raw_val;
+        return (p_val_prm[0][1]/p_val_prm[0][0])*raw_val;
     }
-    else if(  (raw_val>23) && (raw_val<=37)){
-        return  0.1190f*raw_val*raw_val+237.0890f;
+    else if(  (raw_val>p_val_prm[0][0]) && (raw_val<=p_val_prm[1][0])){
+//        return  0.1190f*raw_val*raw_val+237.0890f;
+        return a1*raw_val*raw_val+b1;
     }
-    else if(  (raw_val>37) && (raw_val<=67)){
-        return  10.0f*raw_val+30.0f;
+    else if(  (raw_val>p_val_prm[1][0]) && (raw_val<=p_val_prm[2][0])){
+//        return  10.0f*raw_val+30.0f;
+        return a2*raw_val+b2;
     }
-    else if(  raw_val>67){
-        return  700.0;
+    else if(  raw_val>p_val_prm[2][0]){
+        return  p_val_prm[2][1];
     }
     return 0.0;
 }
